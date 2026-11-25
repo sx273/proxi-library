@@ -1,0 +1,14 @@
+services:
+  proxi-library:
+    image: ghcr.io/INSERISCI-UTENTE/proxi-library:latest
+    container_name: proxi-library
+    restart: unless-stopped
+    ports:
+      - "6067:6067"
+    environment:
+      LUCIDADL_HOME: /data/lucidadl
+      DASHBOARD_DATA: /data/dashboard
+      MUSIC_ROOT: /music
+    volumes:
+      - /DATA/Media/Music:/music
+      - /DATA/AppData/proxi-library:/data

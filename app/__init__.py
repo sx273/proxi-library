@@ -1,0 +1,1 @@
+"""Web application package for the Lucida music dashboard."""

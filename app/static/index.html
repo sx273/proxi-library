@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f2e7fb" />
+    <title>Proxi Library</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/static/styles.css?v=3" />
+  </head>
+  <body>
+    <div class="page-wash" aria-hidden="true"></div>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Proxi Library, home">
+        <span class="brand-mark">L</span>
+        <span class="brand-name">proxi<span>library</span></span>
+      </a>
+      <div class="topbar-actions">
+        <div class="access-indicator" id="accessIndicator" aria-live="polite">
+          <span class="status-dot"></span>
+          <span id="accessLabel">Controllo sessione</span>
+        </div>
+        <button class="icon-button" id="settingsOpen" type="button" aria-label="Apri impostazioni" title="Impostazioni">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/><path d="m19.4 15 .1.1a1.7 1.7 0 0 1-2.4 2.4l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a1.7 1.7 0 0 1-3.4 0v-.2a1.7 1.7 0 0 0-2.9-1.2l-.1.1a1.7 1.7 0 1 1-2.4-2.4l.1-.1a1.7 1.7 0 0 0-1.2-2.9H4a1.7 1.7 0 0 1 0-3.4h.2a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a1.7 1.7 0 0 1 2.4-2.4l.1.1a1.7 1.7 0 0 0 2.9-1.2V2a1.7 1.7 0 0 1 3.4 0v.2a1.7 1.7 0 0 0 2.9 1.2l.1-.1a1.7 1.7 0 1 1 2.4 2.4l-.1.1a1.7 1.7 0 0 0 1.2 2.9h.2a1.7 1.7 0 0 1 0 3.4h-.2a1.7 1.7 0 0 0-1.2 2.9Z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="intro" aria-labelledby="pageTitle">
+        <div class="intro-copy">
+          <p class="eyebrow"><span class="eyebrow-line"></span> LA TUA LIBRERIA, DIRETTAMENTE SUL SERVER</p>
+          <h1 id="pageTitle">La musica trova<br /><em>casa qui.</em></h1>
+          <p class="intro-description">Cerca un brano o un album, controlla ogni traccia e scegli tu cosa aggiungere alla raccolta.</p>
+        </div>
+        <div class="vinyl-art" aria-hidden="true">
+          <div class="vinyl-disc"><div class="vinyl-label"><span>LL</span></div></div>
+          <span class="vinyl-caption">SIDE A&nbsp; / &nbsp;YOUR LIBRARY</span>
+        </div>
+      </section>
+
+      <section class="search-section" aria-label="Ricerca musicale">
+        <form class="search-form" id="searchForm">
+          <label class="search-label" for="searchInput">Cerca musica</label>
+          <div class="search-control">
+            <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.5 4.5"/></svg>
+            <input id="searchInput" name="query" type="search" placeholder="Artista, canzone o album..." autocomplete="off" required minlength="2" maxlength="200" />
+            <button class="search-submit" type="submit"><span>Cerca</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+          </div>
+          <p class="search-note">Risultati dalla sorgente <strong id="activeService">Amazon Music</strong></p>
+        </form>
+      </section>
+
+      <section class="activity-section" id="activitySection" aria-live="polite">
+        <div class="section-heading"><div><p class="eyebrow">IN CORSO</p><h2>Download in corso</h2></div></div>
+        <div class="job-list" id="jobList"><p class="empty-state">Tutto vuoto qui!</p></div>
+      </section>
+
+      <section class="results-section" id="resultsSection" hidden>
+        <div class="section-heading">
+          <div><p class="eyebrow">LA RICERCA</p><h2 id="resultsTitle">Risultati</h2></div>
+          <span class="result-count" id="resultCount"></span>
+        </div>
+        <div class="result-list" id="resultList"></div>
+      </section>
+
+      <section class="recent-section">
+        <div class="section-heading recent-heading">
+          <div><p class="eyebrow">APPENA AGGIUNTE</p><h2>Scaricate di recente</h2></div>
+          <span class="recent-mark">ULTIMI 12</span>
+        </div>
+        <div class="recent-list" id="recentList"><p class="empty-state">La raccolta è pronta per il primo ascolto.</p></div>
+      </section>
+
+      <footer class="footer-note">
+        <span>Organizzazione automatica per artista e album</span>
+        <span id="folderCaption">Destinazione in caricamento</span>
+      </footer>
+    </main>
+
+    <dialog class="settings-dialog" id="settingsDialog">
+      <form class="dialog-inner" id="settingsForm" method="dialog">
+        <div class="dialog-heading">
+          <div><p class="eyebrow">PREFERENZE</p><h2>Impostazioni</h2></div>
+          <button class="icon-button dialog-close" id="settingsClose" type="button" aria-label="Chiudi impostazioni">×</button>
+        </div>
+        <label class="field-label" for="serviceSelect">Sorgente di ricerca</label>
+        <select id="serviceSelect" name="service">
+          <option value="amazon">Amazon Music</option>
+          <option value="qobuz">Qobuz</option>
+          <option value="grilledcheese">GrilledCheese</option>
+        </select>
+        <label class="field-label" for="musicFolder">Cartella nella libreria</label>
+        <div class="path-field"><span id="musicRootLabel">/music</span><input id="musicFolder" name="music_folder" type="text" placeholder="Es. Rock/Jazz (vuoto = principale)" maxlength="400" /></div>
+        <p class="field-hint">La cartella deve trovarsi nel volume musicale montato su Docker. Le sottocartelle artista/album vengono create automaticamente.</p>
+        <div class="session-box">
+          <div class="session-copy"><span class="session-icon">↗</span><div><strong>Sessione lucida.to</strong><small>Verifica tecnica richiesta dal downloader, separata dal login Google.</small></div></div>
+          <button class="text-button" id="prepareAccess" type="button">Prepara</button>
+        </div>
+        <p class="form-message" id="settingsMessage" role="status"></p>
+        <div class="dialog-actions">
+          <button class="button-secondary" id="settingsCancel" type="button">Annulla</button>
+          <button class="button-primary" type="submit">Salva impostazioni</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="confirm-dialog" id="confirmDialog">
+      <div class="confirm-inner">
+        <p class="eyebrow">ULTIMO CONTROLLO</p>
+        <h2 id="confirmTitle">Aggiungere alla raccolta?</h2>
+        <p class="confirm-subtitle" id="confirmSubtitle"></p>
+        <div class="confirm-track-preview" id="confirmTracks"></div>
+        <div class="dialog-actions">
+          <button class="button-secondary" id="rejectDownload" type="button">Rifiuta</button>
+          <button class="button-primary" id="acceptDownload" type="button">Conferma download</button>
+        </div>
+      </div>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>
