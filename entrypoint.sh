@@ -20,8 +20,12 @@ else
     exit 1
 fi
 
-# Ensure data directories exist
-mkdir -p "${DASHBOARD_DATA:-/data/dashboard}" "${MUSIC_ROOT:-/music}"
+# Ensure data directories exist and clean stale Chromium profile locks
+mkdir -p "${DASHBOARD_DATA:-/data/dashboard}" "${MUSIC_ROOT:-/music}" "${LUCIDADL_HOME:-/data/lucidadl}/profile"
+rm -f \
+    "${LUCIDADL_HOME:-/data/lucidadl}/profile/SingletonLock" \
+    "${LUCIDADL_HOME:-/data/lucidadl}/profile/SingletonSocket" \
+    "${LUCIDADL_HOME:-/data/lucidadl}/profile/SingletonCookie"
 echo "✔  Data directories ready"
 
 echo "--------------------------------------------------------"
@@ -31,7 +35,7 @@ echo "========================================================"
 # Do NOT use exec here: xvfb-run relies on SIGUSR1 + wait, which hangs when
 # xvfb-run runs as PID 1 in a container. Running it as a child process keeps
 # /bin/sh as PID 1 and lets xvfb-run start Xvfb and Uvicorn normally.
-xvfb-run -e /dev/stderr -a -s "-screen 0 1920x1080x24" \
+xvfb-run -e /dev/stderr -a -s "-screen 0 1440x960x24" \
     uvicorn app.main:app --host 0.0.0.0 --port 6067 &
 child_pid=$!
 

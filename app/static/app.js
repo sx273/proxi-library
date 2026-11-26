@@ -9,6 +9,7 @@ const toast = document.querySelector("#toast");
 let confirmCandidate = null;
 let confirmTrackNumbers = [];
 let toastTimer = null;
+let accessPollTimer = null;
 const activeJobs = new Set();
 
 /** Send a JSON request and turn API errors into readable messages. */
@@ -315,6 +316,7 @@ async function openSettings() {
     await loadSettings();
     settingsDialog.showModal();
     document.querySelector("#settingsMessage").textContent = "";
+    await syncPrepareStatus();
   } catch (error) {
     showToast(error.message);
   }
@@ -341,20 +343,54 @@ async function saveSettings(event) {
   }
 }
 
-/** Run lucidadl's browser-based Cloudflare preparation and refresh its status. */
+/** Update the settings modal UI from the live session-preparation state. */
+function renderPrepareState(state) {
+  const button = document.querySelector("#prepareAccess");
+  const message = document.querySelector("#settingsMessage");
+  const remoteBox = document.querySelector("#remoteBrowserBox");
+  button.disabled = Boolean(state.running);
+  button.textContent = state.running ? "Attendi..." : "Prepara";
+  remoteBox.hidden = !state.vnc_ready;
+  if (state.message && (state.running || state.status === "error" || state.status === "ready")) {
+    message.textContent = state.message;
+  }
+}
+
+/** Poll /api/access while Chromium + noVNC preparation is running. */
+async function syncPrepareStatus() {
+  clearTimeout(accessPollTimer);
+  try {
+    const state = await request("/api/access");
+    renderPrepareState(state);
+    if (state.running) {
+      accessPollTimer = setTimeout(syncPrepareStatus, 1200);
+    } else if (state.status === "ready") {
+      await loadAccessStatus();
+    }
+  } catch (error) {
+    document.querySelector("#settingsMessage").textContent = error.message;
+    document.querySelector("#prepareAccess").disabled = false;
+    document.querySelector("#prepareAccess").textContent = "Prepara";
+  }
+}
+
+/** Run lucidadl's browser-based Cloudflare preparation with on-demand noVNC access. */
 async function prepareAccess() {
   const button = document.querySelector("#prepareAccess");
   const message = document.querySelector("#settingsMessage");
   button.disabled = true;
   button.textContent = "Attendi...";
-  message.textContent = "Verifica accesso a lucida.to in corso...";
+  message.textContent = "Avvio del browser remoto in corso...";
   try {
-    const result = await request("/api/access/prepare", { method: "POST" });
-    message.textContent = result.message;
-    await loadAccessStatus();
+    const state = await request("/api/access/prepare", { method: "POST" });
+    renderPrepareState(state);
+    if (state.running) {
+      accessPollTimer = setTimeout(syncPrepareStatus, 800);
+    } else {
+      await loadAccessStatus();
+    }
   } catch (error) {
     message.textContent = error.message;
-  } finally {
     button.disabled = false;
     button.textContent = "Prepara";
   }

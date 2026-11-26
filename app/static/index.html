@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/static/styles.css?v=3" />
+    <link rel="stylesheet" href="/static/styles.css?v=4" />
   </head>
   <body>
     <div class="page-wash" aria-hidden="true"></div>
@@ -99,6 +99,10 @@
           <div class="session-copy"><span class="session-icon">↗</span><div><strong>Sessione lucida.to</strong><small>Verifica tecnica richiesta dal downloader, separata dal login Google.</small></div></div>
           <button class="text-button" id="prepareAccess" type="button">Prepara</button>
         </div>
+        <div class="session-remote" id="remoteBrowserBox" hidden>
+          <p class="session-remote-note">Se Cloudflare richiede una verifica manuale, apri il browser remoto e completala nella finestra di Chromium.</p>
+          <a class="text-button remote-browser-link" id="openRemoteBrowser" href="/vnc/vnc.html?autoconnect=true&amp;resize=scale&amp;path=websockify" target="_blank" rel="noopener">Apri browser remoto</a>
+        </div>
         <p class="form-message" id="settingsMessage" role="status"></p>
         <div class="dialog-actions">
           <button class="button-secondary" id="settingsCancel" type="button">Annulla</button>
@@ -121,6 +125,6 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="/static/app.js" defer></script>
+    <script src="/static/app.js?v=2" defer></script>
   </body>
 </html>

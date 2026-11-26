@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 import httpx
@@ -41,6 +41,9 @@ SETTINGS_FILE = DATA_DIR / "settings.json"
 DATABASE_FILE = DATA_DIR / "dashboard.sqlite3"
 ALLOWED_SERVICES = {"amazon", "qobuz", "grilledcheese"}
 CANDIDATE_TTL_SECONDS = 15 * 60
+NOVNC_DIR = Path(os.environ.get("NOVNC_DIR", "/usr/share/novnc"))
+VNC_HOST = "127.0.0.1"
+VNC_PORT = 5900
 
 logger = logging.getLogger("proxi-library")
 logger.setLevel(logging.INFO)
@@ -57,6 +60,8 @@ if not logger.handlers:
 
 app = FastAPI(title="Proxi Library")
 app.mount("/static", StaticFiles(directory=APP_DIR / "static"), name="static")
+if NOVNC_DIR.is_dir():
+    app.mount("/vnc", StaticFiles(directory=NOVNC_DIR), name="novnc")
 
 
 @app.on_event("startup")
@@ -124,7 +129,13 @@ async def _startup_checks() -> None:
     except Exception as exc:
         logger.warning("⚠  lucida.to session        : check failed — %s", exc)
 
-    # 7. Settings
+    # 7. Remote browser tools (x11vnc + noVNC)
+    if shutil.which("x11vnc") and NOVNC_DIR.is_dir():
+        logger.info("✔  Remote browser (noVNC)   : available at /vnc/")
+    else:
+        logger.warning("⚠  Remote browser (noVNC)   : x11vnc or %s missing", NOVNC_DIR)
+
+    # 8. Settings
     try:
         settings = _read_settings()
         logger.info("✔  Default source           : %s", settings["service"])
@@ -139,6 +150,13 @@ _candidates: dict[str, dict[str, Any]] = {}
 _jobs: dict[str, dict[str, Any]] = {}
 _jobs_lock = asyncio.Lock()
 _download_lock = asyncio.Lock()
+_access_lock = asyncio.Lock()
+_access_state: dict[str, Any] = {
+    "running": False,
+    "vnc_ready": False,
+    "status": "idle",
+    "message": "",
+}
 _artwork_cache: dict[tuple[str, str], list[dict[str, Any]]] = {}
 
 
@@ -567,11 +585,123 @@ async def update_settings(body: SettingsRequest) -> dict[str, str]:
     return await get_settings()
 
 
+def _clear_stale_browser_locks() -> None:
+    """Remove leftover Chromium singleton lock files when no browser is running."""
+    profile_dir = Path(paths.PROFILE_DIR)
+    for name in ("SingletonLock", "SingletonSocket", "SingletonCookie"):
+        lock_file = profile_dir / name
+        if lock_file.exists() or lock_file.is_symlink():
+            try:
+                lock_file.unlink()
+            except OSError:
+                pass
+
+
+async def _wait_for_port(host: str, port: int, timeout: float = 4.0) -> bool:
+    """Wait briefly for the local x11vnc server to accept TCP connections."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            _reader, writer = await asyncio.open_connection(host, port)
+            writer.close()
+            await writer.wait_closed()
+            return True
+        except OSError:
+            await asyncio.sleep(0.15)
+    return False
+
+
+async def _start_vnc_server() -> asyncio.subprocess.Process | None:
+    """Start an on-demand local-only x11vnc server attached to Xvfb."""
+    if not shutil.which("x11vnc") or not os.environ.get("DISPLAY"):
+        return None
+    proc = await asyncio.create_subprocess_exec(
+        "x11vnc",
+        "-display",
+        os.environ["DISPLAY"],
+        "-listen",
+        VNC_HOST,
+        "-rfbport",
+        str(VNC_PORT),
+        "-nopw",
+        "-forever",
+        "-shared",
+        "-noxdamage",
+        "-xkb",
+        "-quiet",
+        stdout=asyncio.subprocess.DEVNULL,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    if await _wait_for_port(VNC_HOST, VNC_PORT):
+        logger.info("✔  Remote VNC server listening on %s:%s", VNC_HOST, VNC_PORT)
+        return proc
+    logger.warning("⚠  x11vnc did not become ready in time")
+    await _stop_process(proc)
+    return None
+
+
+async def _stop_process(proc: asyncio.subprocess.Process | None) -> None:
+    """Gracefully terminate a helper subprocess."""
+    if proc is None or proc.returncode is not None:
+        return
+    proc.terminate()
+    try:
+        await asyncio.wait_for(proc.wait(), timeout=3.0)
+    except asyncio.TimeoutError:
+        proc.kill()
+        await proc.wait()
+
+
+async def _run_access_prepare() -> None:
+    """Launch visible Chromium in Xvfb with on-demand noVNC so the user can clear Cloudflare."""
+    vnc_proc: asyncio.subprocess.Process | None = None
+    async with _access_lock:
+        try:
+            logger.info("Starting lucida.to session preparation...")
+            if not await chromium_installed() and not await install_chromium():
+                raise RuntimeError("Chromium non è stato installato. Riprova dalla dashboard.")
+            _clear_stale_browser_locks()
+            vnc_proc = await _start_vnc_server()
+            has_novnc = vnc_proc is not None and NOVNC_DIR.is_dir()
+            _access_state["vnc_ready"] = has_novnc
+            _access_state["message"] = (
+                "Browser aperto: se Cloudflare richiede verifica, clicca 'Apri browser remoto'."
+                if has_novnc
+                else "Verifica accesso a lucida.to in corso..."
+            )
+            await acquire_clearance(hidden=False)
+            _access_state.update(
+                running=False,
+                vnc_ready=False,
+                status="ready",
+                message="Sessione lucida.to preparata.",
+            )
+            logger.info("✔  lucida.to session prepared successfully")
+        except Exception as exc:
+            _access_state.update(
+                running=False,
+                vnc_ready=False,
+                status="error",
+                message=f"Preparazione sessione non riuscita: {exc}",
+            )
+            logger.warning("⚠  lucida.to session preparation failed: %s", exc)
+        finally:
+            _access_state["running"] = False
+            _access_state["vnc_ready"] = False
+            await _stop_process(vnc_proc)
+
+
 @app.get("/api/access")
-async def access_status() -> dict[str, bool]:
-    """Report whether lucidadl has a saved browser session."""
+async def access_status() -> dict[str, Any]:
+    """Report whether lucidadl has a saved browser session and live prepare state."""
     _clearance, user_agent = load_clearance()
-    return {"ready": bool(user_agent)}
+    return {
+        "ready": bool(user_agent),
+        "running": _access_state["running"],
+        "vnc_ready": _access_state["vnc_ready"],
+        "status": _access_state["status"],
+        "message": _access_state["message"],
+    }
 
 
 @app.get("/api/artwork")
@@ -596,19 +726,72 @@ async def artwork_image(url: str) -> Response:
     )
 
 
-@app.post("/api/access/prepare")
-async def prepare_access() -> dict[str, str]:
-    """Run lucidadl's headed Chromium clearance flow inside the Xvfb display."""
+@app.post("/api/access/prepare", status_code=202)
+async def prepare_access() -> dict[str, Any]:
+    """Start lucidadl's browser clearance flow inside Xvfb with optional noVNC access."""
+    if _access_state["running"] or _access_lock.locked():
+        return dict(_access_state)
+    _access_state.update(
+        running=True,
+        vnc_ready=False,
+        status="preparing",
+        message="Avvio del browser remoto in corso...",
+    )
+    asyncio.create_task(_run_access_prepare())
+    return dict(_access_state)
+
+
+@app.websocket("/websockify")
+async def vnc_websockify(websocket: WebSocket) -> None:
+    """Bridge browser noVNC WebSocket traffic to the local x11vnc TCP socket."""
+    offered = [
+        item.strip()
+        for item in websocket.headers.get("sec-websocket-protocol", "").split(",")
+        if item.strip()
+    ]
+    subprotocol = "binary" if "binary" in offered else (offered[0] if offered else None)
+    await websocket.accept(subprotocol=subprotocol)
     try:
-        if not await chromium_installed() and not await install_chromium():
-            raise RuntimeError("Chromium non è stato installato. Riprova dalla dashboard.")
-        await acquire_clearance(hidden=True)
-    except Exception as exc:
-        raise HTTPException(
-            status_code=502,
-            detail=f"Preparazione sessione non riuscita: {exc}",
-        ) from exc
-    return {"message": "Sessione lucida.to preparata."}
+        reader, writer = await asyncio.open_connection(VNC_HOST, VNC_PORT)
+    except OSError:
+        await websocket.close(code=1013)
+        return
+
+    async def tcp_to_ws() -> None:
+        while True:
+            chunk = await reader.read(65536)
+            if not chunk:
+                break
+            await websocket.send_bytes(chunk)
+
+    async def ws_to_tcp() -> None:
+        while True:
+            data = await websocket.receive_bytes()
+            writer.write(data)
+            await writer.drain()
+
+    tasks = {
+        asyncio.create_task(tcp_to_ws()),
+        asyncio.create_task(ws_to_tcp()),
+    }
+    try:
+        _done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        for task in pending:
+            task.cancel()
+        await asyncio.gather(*pending, return_exceptions=True)
+    except (WebSocketDisconnect, OSError):
+        for task in tasks:
+            task.cancel()
+    finally:
+        writer.close()
+        try:
+            await writer.wait_closed()
+        except OSError:
+            pass
+        try:
+            await websocket.close()
+        except Exception:
+            pass
 
 
 @app.post("/api/search")
