@@ -20,7 +20,7 @@ music/
 The dashboard features an aesthetic lilac-to-pink gradient theme, fully optimized for both desktop and mobile devices:
 
 <p align="center">
-  <img src="docs/images/dashboard-desktop.png" alt="Proxi Library Desktop Dashboard" width="85%" />
+  <img src="docs/images/dashboard-live.jpg" alt="Proxi Library Live Dashboard" width="95%" />
 </p>
 
 <p align="center">
@@ -41,11 +41,21 @@ The dashboard features an aesthetic lilac-to-pink gradient theme, fully optimize
 
 ---
 
-## 🛠️ Search and Download Engine
+## 🛠️ Search and Download Engine (lucidadl & lucida.to)
 
-The backend search resolution and audio download pipeline is powered by the open-source library **[lucidadl](https://github.com/Jude-A/lucidadl)** by Jude-A.
+This project relies on and is built upon the repository **[lucidadl](https://github.com/Jude-A/lucidadl)** (developed by **Jude-A**) to handle music searching and downloading through **[lucida.to](https://lucida.to)**.
 
-> **Access Note:** Accessing `lucida.to` requires a browser session protected by Cloudflare clearance, handled headlessly inside the container via Chromium and Xvfb. From the dashboard settings (the gear icon ⚙️ in the top right), click **Prepara** under the *Sessione lucida.to* section to initialize or renew the session when needed.
+> ⚠️ **Important Disclaimer:** **Proxi Library is an independent, third-party project and is NOT affiliated with, endorsed by, supported by, or connected to lucida.to or Jude-A in any way.** All rights to lucidadl belong to its respective author.
+
+### Cloudflare Access Note
+Accessing `lucida.to` requires a browser session protected by Cloudflare clearance, handled headlessly inside the container via Chromium and Xvfb. From the dashboard settings (the gear icon ⚙️ in the top right), click **Prepara** under the *Sessione lucida.to* section to initialize or renew the session when needed.
+
+---
+
+## 📖 Architecture & Code Documentation
+
+For a detailed explanation of the internal architecture and a breakdown of what every single function does (both backend FastAPI and frontend JavaScript), please see:
+👉 **[Documentation: Function & Architecture Reference](docs/functions.md)**
 
 ---
 
