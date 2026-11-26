@@ -18,6 +18,8 @@ RUN python -m playwright install-deps chromium \
     && rm -rf /var/lib/apt/lists/*
 
 COPY app ./app
+COPY entrypoint.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
 
 ENV LUCIDADL_HOME=/data/lucidadl \
     DASHBOARD_DATA=/data/dashboard \
@@ -25,4 +27,4 @@ ENV LUCIDADL_HOME=/data/lucidadl \
 
 EXPOSE 6067
 
-CMD ["xvfb-run", "-a", "-s", "-screen 0 1920x1080x24", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "6067"]
+CMD ["./entrypoint.sh"]

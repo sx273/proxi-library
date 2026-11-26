@@ -4,6 +4,7 @@ services:
     image: ghcr.io/sx273/proxi-library:latest
     container_name: proxi-library
     restart: unless-stopped
+    network_mode: bridge
     shm_size: "512m"
     ports:
       - "6067:6067"

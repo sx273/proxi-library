@@ -5,8 +5,10 @@ from __future__ import annotations
 import asyncio
 import difflib
 import json
+import logging
 import os
 import re
+import shutil
 import sqlite3
 import time
 import uuid
@@ -39,8 +41,92 @@ DATABASE_FILE = DATA_DIR / "dashboard.sqlite3"
 ALLOWED_SERVICES = {"amazon", "qobuz", "grilledcheese"}
 CANDIDATE_TTL_SECONDS = 15 * 60
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s  %(levelname)-8s  %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger("proxi-library")
+
 app = FastAPI(title="Proxi Library")
 app.mount("/static", StaticFiles(directory=APP_DIR / "static"), name="static")
+
+
+@app.on_event("startup")
+async def _startup_checks() -> None:
+    """Run health checks at boot and log every component's status."""
+    logger.info("=" * 56)
+    logger.info("  PROXI LIBRARY — starting up")
+    logger.info("=" * 56)
+
+    # 1. Xvfb / virtual display
+    display = os.environ.get("DISPLAY", "")
+    xvfb_bin = shutil.which("Xvfb") or shutil.which("xvfb")
+    xauth_bin = shutil.which("xauth")
+    if display:
+        logger.info("✔  Virtual display          : %s", display)
+    else:
+        logger.warning("⚠  DISPLAY not set (Xvfb may not be running)")
+    if xvfb_bin:
+        logger.info("✔  Xvfb found               : %s", xvfb_bin)
+    else:
+        logger.warning("⚠  Xvfb not found in PATH")
+    if xauth_bin:
+        logger.info("✔  xauth found              : %s", xauth_bin)
+    else:
+        logger.error("✖  xauth NOT found — xvfb-run will fail")
+
+    # 2. Data directories
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        logger.info("✔  Data directory           : %s", DATA_DIR)
+    except OSError as exc:
+        logger.error("✖  Data directory           : %s — %s", DATA_DIR, exc)
+
+    # 3. Music directory
+    try:
+        MUSIC_ROOT.mkdir(parents=True, exist_ok=True)
+        logger.info("✔  Music directory          : %s", MUSIC_ROOT)
+    except OSError as exc:
+        logger.error("✖  Music directory          : %s — %s", MUSIC_ROOT, exc)
+
+    # 4. Database
+    try:
+        _ensure_storage()
+        logger.info("✔  SQLite database          : %s", DATABASE_FILE)
+    except Exception as exc:
+        logger.error("✖  SQLite database          : %s", exc)
+
+    # 5. Chromium (Playwright)
+    try:
+        installed = await chromium_installed()
+        if installed:
+            logger.info("✔  Chromium (Playwright)    : installed")
+        else:
+            logger.warning("⚠  Chromium (Playwright)    : not installed — will be installed on first use")
+    except Exception as exc:
+        logger.warning("⚠  Chromium (Playwright)    : check failed — %s", exc)
+
+    # 6. lucida.to session
+    try:
+        _clearance, user_agent = load_clearance()
+        if user_agent:
+            logger.info("✔  lucida.to session        : ready")
+        else:
+            logger.info("⚬  lucida.to session        : not prepared (use the button in the dashboard)")
+    except Exception as exc:
+        logger.warning("⚠  lucida.to session        : check failed — %s", exc)
+
+    # 7. Settings
+    try:
+        settings = _read_settings()
+        logger.info("✔  Default source           : %s", settings["service"])
+    except Exception as exc:
+        logger.warning("⚠  Settings                 : %s", exc)
+
+    logger.info("-" * 56)
+    logger.info("  Dashboard available at http://0.0.0.0:6067")
+    logger.info("=" * 56)
 
 _candidates: dict[str, dict[str, Any]] = {}
 _jobs: dict[str, dict[str, Any]] = {}
