@@ -93,6 +93,7 @@ x-casaos:
   port_map: "6067"
   scheme: http
   index: /
+  icon: https://cdn-icons-png.flaticon.com/512/465/465596.png
   title:
     en_US: Proxi Library
   tagline:
