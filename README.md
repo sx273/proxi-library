@@ -23,9 +23,7 @@ The dashboard features an aesthetic lilac-to-pink gradient theme, fully optimize
   <img src="docs/images/dashboard-live.jpg" alt="Proxi Library Live Dashboard" width="95%" />
 </p>
 
-<p align="center">
-  <img src="docs/images/dashboard-mobile.png" alt="Proxi Library Mobile View" width="350px" />
-</p>
+
 
 ---
 
