@@ -1,49 +1,146 @@
-# Proxi Library
+# 🎵 Proxi Library
 
-Dashboard Dockerizzata in Python per cercare brani e album con lucidadl, controllare i risultati prima del download e organizzare i file in cartelle per artista e album.
+**Proxi Library** is a modern, clean, and responsive web dashboard designed to search and download music directly to your home server or NAS (such as **ZimaOS** or any **Docker** host), eliminating the need to manually transfer songs from your phone or PC.
 
-## Avvio su ZimaOS
+The application verifies track availability, displays high-resolution cover art, lets you inspect and select individual tracks from albums with an explicit confirmation step before downloading, and automatically organizes downloaded audio files into a neat directory structure:
+```text
+music/
+└── Artists/
+    └── <Artist Name>/
+        └── <Album Title>/
+            ├── 01 - Track Title.flac
+            ├── 02 - Track Title.flac
+            └── cover.jpg
+```
 
-1. Copia `.env.example` in `.env` e imposta `MUSIC_LIBRARY_PATH` sulla cartella della libreria musicale del server. `APP_DATA_PATH` deve puntare a una cartella persistente e scrivibile.
-2. Avvia il progetto con `docker compose up -d --build` dalla cartella che contiene `compose.yaml`.
-3. Apri `http://IP_DEL_SERVER:6067` e vai nelle impostazioni per controllare sorgente e cartella.
-4. Prepara la sessione lucida.to dal pannello impostazioni. Questo passaggio usa Chromium e può richiedere un controllo Cloudflare; non è il login Google gestito dalla tua applicazione esterna.
+---
 
-## Pubblicazione per installazione personalizzata
+## 📸 Dashboard Preview
 
-Il workflow `.github/workflows/publish-image.yml` costruisce l'immagine Docker per `amd64` e `arm64` e la pubblica su GitHub Container Registry (GHCR) quando aggiorni il branch `main` o pubblichi un tag `v*`.
+The dashboard features an aesthetic lilac-to-pink gradient theme, fully optimized for both desktop and mobile devices:
 
-1. Crea un repository GitHub vuoto, ad esempio `proxi-library`, e carica il contenuto di questo progetto senza `.env`, `music/` o `app-data/` (sono esclusi da `.gitignore`). Dalla cartella del progetto puoi usare:
+<p align="center">
+  <img src="docs/images/dashboard-desktop.png" alt="Proxi Library Desktop Dashboard" width="85%" />
+</p>
 
-	```bash
-	git init -b main
-	git add .
-	git commit -m "Initial Proxi Library release"
-	git remote add origin https://github.com/TUO-UTENTE/proxi-library.git
-	git push -u origin main
-	```
+<p align="center">
+  <img src="docs/images/dashboard-mobile.png" alt="Proxi Library Mobile View" width="350px" />
+</p>
 
-2. In GitHub apri `Actions` e attendi il workflow **Publish Proxi Library image**. Al termine l'immagine `ghcr.io/TUO-UTENTE/proxi-library:latest` sarà pubblicata.
-3. Apri il package `proxi-library` nelle impostazioni del profilo GitHub e imposta la visibilità su `Public`, così ZimaOS potrà scaricarlo senza credenziali.
-4. Controlla `compose.zimaos.yaml` (già configurato per `sx273`, con `shm_size` e metadati `x-casaos` per la porta `6067`): se usi un altro utente GitHub o percorsi diversi sul NAS, aggiorna `image:` e i due volumi host (`/DATA/Media/Music` e `/DATA/AppData/proxi-library`).
-5. In ZimaOS apri l'installazione personalizzata, incolla `compose.zimaos.yaml` e avvia l'installazione. La dashboard sarà disponibile sulla porta `6067`.
+---
 
-Ogni push successivo su `main` aggiorna il tag `latest`; per applicare la nuova versione a ZimaOS, aggiorna o ricrea l'app in modo che scarichi l'immagine più recente.
+## ⚡ Key Features
 
-La musica dell'host viene montata nel container come `/music`. Il campo cartella nelle impostazioni è relativo a quel mount; lasciandolo vuoto, lucidadl salva direttamente nella directory host indicata da `MUSIC_LIBRARY_PATH`. Configurazione, database, cookie e profilo Chromium sono persistiti sotto `APP_DATA_PATH`.
+- **Smart Search & Track Preview**: Search for songs or albums. Before downloading, you can open an in-depth preview, inspect all tracks, and choose whether to grab the entire album or just selected tracks.
+- **Download Confirmation**: A dedicated confirmation dialog ensures no accidental downloads are triggered.
+- **Artwork & Metadata**: Automatic high-resolution album artwork fetching via public catalog endpoints (Apple iTunes Search and Deezer with fallback), proxied through a secure same-origin backend endpoint.
+- **High-Quality Audio & Deduplication**: Downloads files at the highest original source quality with built-in deduplication (previously downloaded tracks are skipped automatically).
+- **Real-Time Progress Tracking**: Live progress bars displaying individual track download states and percentages.
+- **Recent Downloads History**: Quick access on the home screen to the latest 12 downloaded items with metadata and artwork.
+- **Multiple Services & Custom Destination**: Supports Amazon Music (default), Qobuz, and GrilledCheese, with configurable subfolder destinations under the library root via the settings modal.
 
-## Flusso
+---
 
-- La ricerca usa la sorgente selezionata nelle impostazioni: Amazon Music è il valore iniziale; lucidadl dichiara inoltre `qobuz` e `grilledcheese`.
-- `Apri` carica i dettagli del risultato e, per un album, mostra le tracce prima di avviare qualsiasi download.
-- Le copertine vengono cercate nei cataloghi pubblici Apple iTunes e Deezer con corrispondenza titolo/artista; il fallback usa Deezer quando Apple non ha un risultato affidabile. Se nessuno dei due cataloghi trova una corrispondenza sicura, la dashboard mostra un segnaposto. Non servono chiavi API.
-- `Conferma download` invia il risultato scelto a lucidadl. Il downloader mantiene la sua gestione dei duplicati e l'organizzazione per tag/metadati.
-- La dashboard non usa Gemini CLI e non contiene un login Google. La sessione Cloudflare di lucidadl viene mantenuta nel volume dati.
+## 🛠️ Search and Download Engine
 
-## Dipendenze e sicurezza
+The backend search resolution and audio download pipeline is powered by the open-source library **[lucidadl](https://github.com/Jude-A/lucidadl)** by Jude-A.
 
-Le dipendenze Python sono elencate in `requirements.txt`; `httpx` è usato per le ricerche delle copertine, mentre il Dockerfile installa anche Chromium e Xvfb necessari alla sessione browser di lucidadl.
+> **Access Note:** Accessing `lucida.to` requires a browser session protected by Cloudflare clearance, handled headlessly inside the container via Chromium and Xvfb. From the dashboard settings (the gear icon ⚙️ in the top right), click **Prepara** under the *Sessione lucida.to* section to initialize or renew the session when needed.
 
-La dashboard non implementa autenticazione propria perché l'accesso è gestito dall'applicazione esterna. Non esporre la porta direttamente a Internet: pubblicala solo su una rete fidata o dietro il tuo reverse proxy/autenticazione esistente. Usa lucidadl solo per contenuti che sei autorizzato a scaricare e nel rispetto delle condizioni dei servizi coinvolti.
+---
 
-Il container richiede accesso a Internet per installazione, ricerca e download. Le funzioni interne di lucidadl non sono una API pubblica stabile: aggiornamenti upstream potrebbero richiedere un adeguamento dell'integrazione.
+## 🚀 Installation & Deployment
+
+### 1. Installation on ZimaOS Server (Recommended)
+
+ZimaOS natively supports custom deployments using Docker Compose through its built-in App Store interface:
+
+1. Open your **ZimaOS** Web UI dashboard.
+2. Navigate to **App Store** and click on **Custom Install** (the manual install/import button in the top right corner).
+3. Paste the following configuration (also available in `compose.zimaos.yaml`):
+
+```yaml
+name: proxi-library
+services:
+  proxi-library:
+    image: ghcr.io/sx273/proxi-library:latest
+    container_name: proxi-library
+    restart: unless-stopped
+    shm_size: "512m"
+    ports:
+      - "6067:6067"
+    environment:
+      LUCIDADL_HOME: /data/lucidadl
+      DASHBOARD_DATA: /data/dashboard
+      MUSIC_ROOT: /music
+    volumes:
+      - /DATA/Media/Music:/music
+      - /DATA/AppData/proxi-library:/data
+
+x-casaos:
+  architectures:
+    - amd64
+    - arm64
+  main: proxi-library
+  port_map: "6067"
+  scheme: http
+  index: /
+  title:
+    en_US: Proxi Library
+  tagline:
+    en_US: Music search and download dashboard
+  category: Media
+```
+
+> 💡 **Path Mapping Tip:** Make sure `/DATA/Media/Music` matches the actual music folder on your ZimaOS storage pool. The `/DATA/AppData/proxi-library` directory persists your database, preferences, and browser session state across updates.
+
+4. Click **Install**.
+5. Once the container is running, click the **Proxi Library** app card or navigate to `http://<SERVER-IP>:6067`.
+6. Open the settings modal (top-right gear icon) and click **Prepara** under *Sessione lucida.to*.
+
+---
+
+### 2. Standard Docker Compose Installation
+
+If you are running any Linux server, PC, or Raspberry Pi with Docker and Docker Compose installed:
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/sx273/proxi-library.git
+   cd proxi-library
+   ```
+
+2. Configure environment variables (optional):
+   ```bash
+   cp .env.example .env
+   ```
+   In `.env`, you can customize your music storage path (`MUSIC_LIBRARY_PATH`) and data directory (`APP_DATA_PATH`), or stick with the local default `./music` and `./app-data` folders.
+
+3. Start the application:
+   ```bash
+   docker compose up -d
+   ```
+   *(Or run `docker compose up -d --build` if you prefer to build the image locally from source)*.
+
+4. Open your browser and visit:
+   ```text
+   http://localhost:6067
+   ```
+   *(Replace `localhost` with your server's IP address if accessing remotely)*.
+
+---
+
+## ⚠️ Maintenance & Forks
+
+This project was developed for a specific personal use case. **I do not guarantee continuous maintenance, long-term updates, or active adaptation** to future breaking changes in upstream third-party service APIs.
+
+You are welcome to:
+- Create a **[Fork](https://github.com/sx273/proxi-library/fork)** of this repository.
+- Modify, adapt, and improve the codebase to suit your needs.
+- Publish your own independent version of the project.
+
+---
+
+## ⚖️ Legal Disclaimer
+
+Use this application solely for music and media you are legally entitled and authorized to download, in full compliance with applicable laws and the terms of service of the respective platforms. This project is not affiliated with, endorsed by, or associated with any commercial streaming service.
