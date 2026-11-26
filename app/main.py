@@ -60,8 +60,6 @@ if not logger.handlers:
 
 app = FastAPI(title="Proxi Library")
 app.mount("/static", StaticFiles(directory=APP_DIR / "static"), name="static")
-if NOVNC_DIR.is_dir():
-    app.mount("/vnc", StaticFiles(directory=NOVNC_DIR), name="novnc")
 
 
 @app.on_event("startup")
@@ -741,6 +739,7 @@ async def prepare_access() -> dict[str, Any]:
     return dict(_access_state)
 
 
+@app.websocket("/vnc/websockify")
 @app.websocket("/websockify")
 async def vnc_websockify(websocket: WebSocket) -> None:
     """Bridge browser noVNC WebSocket traffic to the local x11vnc TCP socket."""
@@ -758,30 +757,36 @@ async def vnc_websockify(websocket: WebSocket) -> None:
         return
 
     async def tcp_to_ws() -> None:
-        while True:
-            chunk = await reader.read(65536)
-            if not chunk:
-                break
-            await websocket.send_bytes(chunk)
+        try:
+            while True:
+                chunk = await reader.read(65536)
+                if not chunk:
+                    break
+                await websocket.send_bytes(chunk)
+        except (WebSocketDisconnect, OSError):
+            pass
 
     async def ws_to_tcp() -> None:
-        while True:
-            data = await websocket.receive_bytes()
-            writer.write(data)
-            await writer.drain()
+        try:
+            while True:
+                data = await websocket.receive_bytes()
+                writer.write(data)
+                await writer.drain()
+        except (WebSocketDisconnect, OSError):
+            pass
 
     tasks = {
         asyncio.create_task(tcp_to_ws()),
         asyncio.create_task(ws_to_tcp()),
     }
     try:
-        _done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
         for task in pending:
             task.cancel()
         await asyncio.gather(*pending, return_exceptions=True)
-    except (WebSocketDisconnect, OSError):
-        for task in tasks:
-            task.cancel()
+        for task in done:
+            if not task.cancelled():
+                task.exception()
     finally:
         writer.close()
         try:
@@ -792,6 +797,11 @@ async def vnc_websockify(websocket: WebSocket) -> None:
             await websocket.close()
         except Exception:
             pass
+
+
+# Mount /vnc static assets AFTER /vnc/websockify so StaticFiles does not intercept the WebSocket.
+if NOVNC_DIR.is_dir():
+    app.mount("/vnc", StaticFiles(directory=NOVNC_DIR), name="novnc")
 
 
 @app.post("/api/search")
