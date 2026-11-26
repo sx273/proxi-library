@@ -25,10 +25,10 @@ Il workflow `.github/workflows/publish-image.yml` costruisce l'immagine Docker p
 
 2. In GitHub apri `Actions` e attendi il workflow **Publish Proxi Library image**. Al termine l'immagine `ghcr.io/TUO-UTENTE/proxi-library:latest` sarà pubblicata.
 3. Apri il package `proxi-library` nelle impostazioni del profilo GitHub e imposta la visibilità su `Public`, così ZimaOS potrà scaricarlo senza credenziali.
-4. Copia `compose.zimaos.yaml`, sostituisci `INSERISCI-UTENTE` con il nome GitHub in minuscolo e scegli i due percorsi host: la cartella musicale e una cartella persistente per i dati dell'app.
-5. In ZimaOS apri l'installazione personalizzata, incolla il Compose aggiornato e avvia l'installazione. La dashboard sarà disponibile sulla porta `6067`.
+4. Controlla `compose.zimaos.yaml` (già configurato per `sx273`, con `shm_size` e metadati `x-casaos` per la porta `6067`): se usi un altro utente GitHub o percorsi diversi sul NAS, aggiorna `image:` e i due volumi host (`/DATA/Media/Music` e `/DATA/AppData/proxi-library`).
+5. In ZimaOS apri l'installazione personalizzata, incolla `compose.zimaos.yaml` e avvia l'installazione. La dashboard sarà disponibile sulla porta `6067`.
 
-Ogni push successivo su `main` aggiorna il tag `latest`; per applicare la nuova versione a ZimaOS, aggiorna o ricrea l'app in modo che scarichi l'immagine più recente. Questo flusso crea un'immagine installabile con Compose; per aggiungerla come scheda all'App Store serve anche il metadata `x-casaos` e un catalogo compatibile.
+Ogni push successivo su `main` aggiorna il tag `latest`; per applicare la nuova versione a ZimaOS, aggiorna o ricrea l'app in modo che scarichi l'immagine più recente.
 
 La musica dell'host viene montata nel container come `/music`. Il campo cartella nelle impostazioni è relativo a quel mount; lasciandolo vuoto, lucidadl salva direttamente nella directory host indicata da `MUSIC_LIBRARY_PATH`. Configurazione, database, cookie e profilo Chromium sono persistiti sotto `APP_DATA_PATH`.
 

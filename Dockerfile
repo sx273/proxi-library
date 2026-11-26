@@ -7,12 +7,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends xvfb \
+    && apt-get install -y --no-install-recommends xvfb libatomic1 ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt ./requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt \
-    && python -m playwright install --with-deps chromium \
+RUN pip install --no-cache-dir -r requirements.txt
+
+RUN python -m playwright install-deps chromium \
+    && python -m playwright install chromium \
     && rm -rf /var/lib/apt/lists/*
 
 COPY app ./app
@@ -23,4 +25,4 @@ ENV LUCIDADL_HOME=/data/lucidadl \
 
 EXPOSE 6067
 
-CMD ["xvfb-run", "-a", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "6067"]
+CMD ["xvfb-run", "-a", "-s", "-screen 0 1920x1080x24", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "6067"]

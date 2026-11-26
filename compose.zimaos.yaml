@@ -1,8 +1,10 @@
+name: proxi-library
 services:
   proxi-library:
-    image: ghcr.io/INSERISCI-UTENTE/proxi-library:latest
+    image: ghcr.io/sx273/proxi-library:latest
     container_name: proxi-library
     restart: unless-stopped
+    shm_size: "512m"
     ports:
       - "6067:6067"
     environment:
@@ -12,3 +14,17 @@ services:
     volumes:
       - /DATA/Media/Music:/music
       - /DATA/AppData/proxi-library:/data
+
+x-casaos:
+  architectures:
+    - amd64
+    - arm64
+  main: proxi-library
+  port_map: "6067"
+  scheme: http
+  index: /
+  title:
+    en_US: Proxi Library
+  tagline:
+    en_US: Music search and download dashboard
+  category: Media

@@ -3,6 +3,7 @@ services:
     build: .
     container_name: proxi-library
     restart: unless-stopped
+    shm_size: "512m"
     ports:
       - "${APP_PORT:-6067}:6067"
     environment:
