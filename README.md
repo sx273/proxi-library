@@ -46,7 +46,7 @@ This project relies on and is built upon the repository **[lucidadl](https://git
 > ⚠️ **Important Disclaimer:** **Proxi Library is an independent, third-party project and is NOT affiliated with, endorsed by, supported by, or connected to lucida.to or Jude-A in any way.** All rights to lucidadl belong to its respective author.
 
 ### Cloudflare Access Note
-Accessing `lucida.to` requires a browser session protected by Cloudflare clearance, handled headlessly inside the container via Chromium and Xvfb. From the dashboard settings (the gear icon ⚙️ in the top right), click **Prepara** under the *Sessione lucida.to* section to initialize or renew the session when needed.
+Accessing lucida.to requires a browser session protected by Cloudflare clearance, handled inside the container via a virtual browser accessible through VNC for CAPTCHA verification. From the dashboard settings (the gear icon ⚙️ in the top right), click Prepara under the Sessione lucida.to section to initialize or renew the session when needed.
 
 ---
 
