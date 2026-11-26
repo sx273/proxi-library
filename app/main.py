@@ -10,6 +10,7 @@ import os
 import re
 import shutil
 import sqlite3
+import sys
 import time
 import uuid
 from pathlib import Path
@@ -41,12 +42,18 @@ DATABASE_FILE = DATA_DIR / "dashboard.sqlite3"
 ALLOWED_SERVICES = {"amazon", "qobuz", "grilledcheese"}
 CANDIDATE_TTL_SECONDS = 15 * 60
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s  %(levelname)-8s  %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
 logger = logging.getLogger("proxi-library")
+logger.setLevel(logging.INFO)
+logger.propagate = False
+if not logger.handlers:
+    _handler = logging.StreamHandler(sys.stdout)
+    _handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s  %(levelname)-8s  %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+    )
+    logger.addHandler(_handler)
 
 app = FastAPI(title="Proxi Library")
 app.mount("/static", StaticFiles(directory=APP_DIR / "static"), name="static")
@@ -99,7 +106,7 @@ async def _startup_checks() -> None:
 
     # 5. Chromium (Playwright)
     try:
-        installed = await chromium_installed()
+        installed = await asyncio.wait_for(chromium_installed(), timeout=5.0)
         if installed:
             logger.info("✔  Chromium (Playwright)    : installed")
         else:

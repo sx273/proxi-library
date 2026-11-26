@@ -28,5 +28,12 @@ echo "--------------------------------------------------------"
 echo "  Starting Xvfb + Uvicorn on port 6067..."
 echo "========================================================"
 
-exec xvfb-run -a -s "-screen 0 1920x1080x24" \
-    uvicorn app.main:app --host 0.0.0.0 --port 6067
+# Do NOT use exec here: xvfb-run relies on SIGUSR1 + wait, which hangs when
+# xvfb-run runs as PID 1 in a container. Running it as a child process keeps
+# /bin/sh as PID 1 and lets xvfb-run start Xvfb and Uvicorn normally.
+xvfb-run -e /dev/stderr -a -s "-screen 0 1920x1080x24" \
+    uvicorn app.main:app --host 0.0.0.0 --port 6067 &
+child_pid=$!
+
+trap 'kill -TERM "$child_pid" 2>/dev/null || true; wait "$child_pid" 2>/dev/null || true' TERM INT
+wait "$child_pid"
