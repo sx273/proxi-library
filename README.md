@@ -67,8 +67,7 @@ ZimaOS natively supports custom deployments using Docker Compose through its bui
 2. Navigate to **App Store** and click on **Custom Install** (the manual install/import button in the top right corner).
 3. Paste the following configuration (also available in `compose.zimaos.yaml`):
 
-```yaml
-name: proxi-library
+``name: proxi-library
 services:
   proxi-library:
     image: ghcr.io/sx273/proxi-library:latest
